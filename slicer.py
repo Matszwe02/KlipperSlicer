@@ -9,8 +9,8 @@ prevent_file_read = False
 last_file_change = datetime.now().timestamp()
 user = os.listdir('/home')[0]
 gcode_console = f"/home/{user}/printer_data/comms/klippy.serial"
-slicer_exec = (os.listdir("./slicer/"))[0]
-config_file = f"/home/{user}/Slicer/config.ini"
+slicer_exec = (os.listdir("./KlipperSlicer/"))[0]
+config_file = f"/home/{user}/KlipperSlicer/config.ini"
 
 
 def run_gcode(command):
