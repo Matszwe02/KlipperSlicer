@@ -10,8 +10,8 @@ last_file_change = datetime.now().timestamp()
 user = os.listdir('/home')[0]
 gcode_console = f"/home/{user}/printer_data/comms/klippy.serial"
 slicer_exec = (os.listdir("./slicer/"))[0]
-config_file = f"/home/{user}/KlipperSlicer-data/config.ini"
-
+config_file = f"/home/{user}/KlipperSlicer/config.ini"
+os.system(f"chmod a+x ./slicer/{slicer_exec}")
 
 def run_gcode(command):
     with open(gcode_console, 'a') as console:
