@@ -58,7 +58,7 @@ class FileChangeEvent(LoggingEventHandler):
                 run_gcode(f"RESPOND TYPE=error MSG=\"Slicer: Some Error Occurred ({output})\"")
                 return
                 
-            run_gcode("RESPOND PREFIX='Slicer:'  MSG=\"File sliced! Printing...\"")
+            run_gcode("RESPOND PREFIX='Slicer:'  MSG=\"File sliced\"")
             run_gcode(f"M23 {file_gcode}")
             run_gcode("M24")
         print(os.path.split(file)[0][-20:])
