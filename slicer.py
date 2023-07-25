@@ -49,7 +49,7 @@ class FileChangeEvent(LoggingEventHandler):
                 tries += 1
                 
             os.remove(file)
-            last_file_change = datetime.now()
+            last_file_change = datetime.now().timestamp()
             prevent_file_read = False
             if output == 34304:
                 run_gcode("RESPOND TYPE=error MSG=\"Slicer: Could not fit object on a buildplate\"")
@@ -73,7 +73,7 @@ class FileChangeEvent(LoggingEventHandler):
                 output = os.system(f"'./slicer/{slicer_exec}' --load '{file}' --save {config_file}")
                 tries += 1
             prevent_file_read = False
-            last_file_change = datetime.now()
+            last_file_change = datetime.now().timestamp()
                 
         
 event_handler = FileChangeEvent()
