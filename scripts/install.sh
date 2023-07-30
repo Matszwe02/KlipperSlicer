@@ -16,6 +16,9 @@ libdbus-1-dev \
 
 pip install watchdog
 
+sudo mkdir slicer_data
+sudo cp slicer/* slicer_data/slicer/
+
 
 SRCDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )"
 LAUNCH_CMD="python ${SRCDIR}/slicer.py"

@@ -9,9 +9,9 @@ prevent_file_read = False
 last_file_change = datetime.now().timestamp()
 user = os.listdir('/home')[0]
 gcode_console = f"/home/{user}/printer_data/comms/klippy.serial"
-slicer_exec = (os.listdir("./slicer/"))[0]
-config_file = f"/home/{user}/KlipperSlicer/config.ini"
-os.system(f"chmod a+x ./slicer/{slicer_exec}")
+slicer_exec = (os.listdir("./slicer_data/slicer/"))[0]
+config_file = f"/home/{user}/KlipperSlicer/slicer_data/config.ini"
+os.system(f"chmod a+x ./slicer_data/slicer/{slicer_exec}")
 
 def run_gcode(command):
     with open(gcode_console, 'a') as console:
@@ -45,7 +45,7 @@ class FileChangeEvent(LoggingEventHandler):
             file_wait_for_download(file)
             while output == 256 and tries < 600:
                 time.sleep(1)
-                output = os.system(f"'./slicer/{slicer_exec}' '{file}' -g --load {config_file} -o '/home/{user}/printer_data/gcodes/{file_gcode}'")
+                output = os.system(f"'./slicer_data/slicer/{slicer_exec}' '{file}' -g --load {config_file} -o '/home/{user}/printer_data/gcodes/{file_gcode}'")
                 tries += 1
                 
             os.remove(file)
@@ -70,7 +70,7 @@ class FileChangeEvent(LoggingEventHandler):
             file_wait_for_download(file)
             while output == 256 and tries < 600:
                 time.sleep(1)
-                output = os.system(f"'./slicer/{slicer_exec}' --load '{file}' --save {config_file}")
+                output = os.system(f"'./slicer_data/slicer/{slicer_exec}' --load '{file}' --save {config_file}")
                 tries += 1
             prevent_file_read = False
             last_file_change = datetime.now().timestamp()
