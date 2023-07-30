@@ -64,8 +64,8 @@ class FileChangeEvent(LoggingEventHandler):
                         newf.write(line)
                 
             os.remove(temp_gcode + file_gcode)
-            run_gcode("RESPOND PREFIX='Slicer:'  MSG=\"File sliced\"")
-            run_gcode(f"M23 {file_gcode}")
+            run_gcode(f"RESPOND PREFIX='Slicer:'  MSG=\"{file_gcode} sliced\"")
+            run_gcode(f"M23 /{file_gcode}")
             run_gcode("M24")
             
         if file[-6:].lower() == '.gcode' and os.path.split(file)[0][-20:] == '/printer_data/gcodes':
