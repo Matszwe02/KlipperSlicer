@@ -41,13 +41,15 @@ class FileChangeEvent(LoggingEventHandler):
             run_gcode("RESPOND PREFIX='Slicer:'  MSG=\"Slicing file...\"")
             with open(config_file, 'r') as config:
                 lines = config.readlines()
+                e_temp = 0
+                b_temp = 0
                 for line in lines:
                     if line.startswith('first_layer_temperature = '):
                         e_temp = int(line[26:])
-                        run_gcode(f"M104 S{e_temp - 100}")
                     if line.startswith('first_layer_bed_temperature = '):
                         b_temp = int(line[30:])
-                        run_gcode(f"M140 S{b_temp}")
+                
+                run_gcode(f"_SLICING_PREHEAT EXTRUDER={e_temp} BED={b_temp}")
                         
             output = 256
             tries = 0
