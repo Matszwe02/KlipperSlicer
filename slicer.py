@@ -55,7 +55,8 @@ class FileChangeEvent(LoggingEventHandler):
             if output != 0:
                 run_gcode(f"RESPOND TYPE=error MSG=\"Slicer: Some Error Occurred ({output})\"")
                 return
-            
+        
+            print(f"created gcode {file_gcode}")
             with open(temp_gcode + file_gcode, 'r+') as file:
                 lines = file.readlines()
                 with open(f"/home/{user}/printer_data/gcodes/{file_gcode}", 'w') as newfile:
@@ -68,12 +69,14 @@ class FileChangeEvent(LoggingEventHandler):
             run_gcode(f"M23 {file_gcode}")
             run_gcode("M24")
             
-            
+        print("read gcode")
         if file[-6:].lower() == '.gcode' and os.path.split(file)[0][-20:] == '/printer_data/gcodes':
             file_wait_for_download(file)
+            print("downloaded")
             with open(file, 'r') as f:
                 line = f.readlines()[0]
                 if 'sliced automatically' in line:
+                    print("sliced automatically")
                     return
                 
             output = 256
