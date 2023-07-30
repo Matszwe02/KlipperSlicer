@@ -16,9 +16,9 @@ libdbus-1-dev \
 
 pip install watchdog
 
-sudo mkdir slicer_data
-sudo mkdir slicer_data/gcodes
-sudo cp slicer/* slicer_data/slicer/
+mkdir slicer_data
+mkdir slicer_data/gcodes
+cp slicer/* slicer_data/slicer/
 
 
 SRCDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )"

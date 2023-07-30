@@ -58,7 +58,7 @@ class FileChangeEvent(LoggingEventHandler):
             
             with open(temp_gcode + file_gcode, 'r+') as file:
                 lines = file.readlines()
-                with open('/home/{user}/printer_data/gcodes/{file_gcode}', 'w') as newfile:
+                with open(f"/home/{user}/printer_data/gcodes/{file_gcode}", 'w') as newfile:
                     newfile.write("; sliced automatically with KlipperSlicer plugin\n")
                     for line in lines:
                         newfile.write(line)
