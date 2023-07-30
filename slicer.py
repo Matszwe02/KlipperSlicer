@@ -5,12 +5,12 @@ import os
 from datetime import datetime
 
 
-prevent_file_read = False
 last_file_change = datetime.now().timestamp()
 user = os.listdir('/home')[0]
 gcode_console = f"/home/{user}/printer_data/comms/klippy.serial"
 slicer_exec = (os.listdir("./slicer_data/slicer/"))[0]
 config_file = f"/home/{user}/KlipperSlicer/slicer_data/config.ini"
+temp_gcode = f"/home/{user}/KlipperSlicer/slicer_data/gcodes/"
 os.system(f"chmod a+x ./slicer_data/slicer/{slicer_exec}")
 
 def run_gcode(command):
@@ -27,10 +27,10 @@ def file_wait_for_download(filename):
 
 class FileChangeEvent(LoggingEventHandler):        
     def on_created(self, event):
-        global prevent_file_read, last_file_change
+        global last_file_change
         file = event.src_path
         
-        if prevent_file_read or datetime.now().timestamp() - last_file_change < 5: return
+        if datetime.now().timestamp() - last_file_change < 5: return
         
         if file[-4:].lower() == '.stl':
             if not os.path.exists(config_file):
@@ -39,40 +39,50 @@ class FileChangeEvent(LoggingEventHandler):
                 return
             file_gcode = (os.path.basename(file)[:-4] + '.gcode').replace(" ", "_")
             run_gcode("RESPOND PREFIX='Slicer:'  MSG=\"Slicing file...\"")
-            prevent_file_read = True
             output = 256
             tries = 0
             file_wait_for_download(file)
             while output == 256 and tries < 600:
                 time.sleep(1)
-                output = os.system(f"'./slicer_data/slicer/{slicer_exec}' '{file}' -g --load {config_file} -o '/home/{user}/printer_data/gcodes/{file_gcode}'")
+                output = os.system(f"'./slicer_data/slicer/{slicer_exec}' '{file}' -g --load {config_file} -o '{temp_gcode}{file_gcode}'")
                 tries += 1
                 
             os.remove(file)
             last_file_change = datetime.now().timestamp()
-            prevent_file_read = False
             if output == 34304:
                 run_gcode("RESPOND TYPE=error MSG=\"Slicer: Could not fit object on a buildplate\"")
                 return
             if output != 0:
                 run_gcode(f"RESPOND TYPE=error MSG=\"Slicer: Some Error Occurred ({output})\"")
                 return
+            
+            with open(temp_gcode + file_gcode, 'r+') as file:
+                lines = file.readlines()
+                with open('/home/{user}/printer_data/gcodes/{file_gcode}', 'w') as newfile:
+                    newfile.write("; sliced automatically with KlipperSlicer plugin\n")
+                    for line in lines:
+                        newfile.write(line)
                 
+            os.remove(temp_gcode + file_gcode)
             run_gcode("RESPOND PREFIX='Slicer:'  MSG=\"File sliced\"")
             run_gcode(f"M23 {file_gcode}")
             run_gcode("M24")
-        print(os.path.split(file)[0][-20:])
+            
+            
         if file[-6:].lower() == '.gcode' and os.path.split(file)[0][-20:] == '/printer_data/gcodes':
-            run_gcode("RESPOND PREFIX='Slicer:'  MSG=\"Updated Slicer Config\"")
-            prevent_file_read = True
+            file_wait_for_download(file)
+            with open(file, 'r') as f:
+                line = f.readlines()[0]
+                if 'sliced automatically' in line:
+                    return
+                
             output = 256
             tries = 0
-            file_wait_for_download(file)
             while output == 256 and tries < 600:
                 time.sleep(1)
                 output = os.system(f"'./slicer_data/slicer/{slicer_exec}' --load '{file}' --save {config_file}")
                 tries += 1
-            prevent_file_read = False
+            run_gcode("RESPOND PREFIX='Slicer:'  MSG=\"Updated Slicer Config\"")
             last_file_change = datetime.now().timestamp()
                 
         

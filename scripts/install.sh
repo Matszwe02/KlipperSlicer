@@ -17,6 +17,7 @@ libdbus-1-dev \
 pip install watchdog
 
 sudo mkdir slicer_data
+sudo mkdir slicer_data/gcodes
 sudo cp slicer/* slicer_data/slicer/
 
 
