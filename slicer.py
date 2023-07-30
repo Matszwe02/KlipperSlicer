@@ -39,6 +39,16 @@ class FileChangeEvent(LoggingEventHandler):
                 return
             file_gcode = (os.path.basename(file)[:-4] + '.gcode').replace(" ", "_")
             run_gcode("RESPOND PREFIX='Slicer:'  MSG=\"Slicing file...\"")
+            with open(config_file, 'r') as config:
+                lines = config.readlines()
+                for line in lines:
+                    if line.startswith('first_layer_temperature = '):
+                        e_temp = int(line[26:])
+                        run_gcode(f"M104 S{e_temp - 100}")
+                    if line.startswith('first_layer_bed_temperature = '):
+                        b_temp = int(line[30:])
+                        run_gcode(f"M140 S{b_temp}")
+                        
             output = 256
             tries = 0
             file_wait_for_download(file)
@@ -64,7 +74,7 @@ class FileChangeEvent(LoggingEventHandler):
                         newf.write(line)
                 
             os.remove(temp_gcode + file_gcode)
-            run_gcode(f"RESPOND PREFIX='Slicer:'  MSG=\"{file_gcode} sliced\"")
+            run_gcode(f"RESPOND PREFIX='Slicer:'  MSG=\"{file_gcode[:-6]} sliced\"")
             run_gcode(f"M23 /{file_gcode}")
             run_gcode("M24")
             
