@@ -14,6 +14,14 @@ libglu1-mesa-dev \
 libgtk-3-dev \
 libdbus-1-dev \
 
+# Deps:
+#  libcairo2
+#  libgtk2.0-0
+#  libpangoxft-1.0-0
+#  libpangocairo-1.0-0
+
+
+
 pip install watchdog
 
 mkdir slicer_data
