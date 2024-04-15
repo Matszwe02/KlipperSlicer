@@ -1,10 +1,18 @@
 # 1. KlipperSlicer - about
- PrusaSlicer / Superslicer / Slic3r integration for klipper
+ PrusaSlicer / Superslicer / OrcaSlicer integration for klipper
 
 
 # 2. Usage
 - Upload `.stl` files anywhere inside `printer_data` folder.
-Default slicer is set to `PrusaSlicer 2.7.0`. You can change it in `~/KlipperSlicer/slicer_data/slicer/`.
+
+- Slicer executable is automatically downloaded, detected by the gcode that's uploaded to the printer.
+
+> This feature is experimental, there may be some issues with the process of downloading.
+> 
+> PrusaSlicer doesn't support downloading selected versions
+> 
+> OrcaSlicer has some troubles working (tested on rpi3)
+
 
 - 3d printer config will be automatically generated and updated everytime a `.gcode` is uploaded into `printer_data/gcodes`. Config file is stored in `~/KlipperSlicer/slicer_data/config.ini`.
 

@@ -4,6 +4,9 @@ SYSTEMDDIR="/etc/systemd/system"
 FORCE_DEFAULTS="${FORCE_DEFAULTS:-n}"
 MOONRAKER_ASVC=~/printer_data/moonraker.asvc
 
+
+sudo add-apt-repository universe
+
 sudo apt-get update
 sudo apt-get install  -y \
 git \
@@ -13,20 +16,17 @@ cmake \
 libglu1-mesa-dev \
 libgtk-3-dev \
 libdbus-1-dev \
-
-# Deps:
-#  libcairo2
-#  libgtk2.0-0
-#  libpangoxft-1.0-0
-#  libpangocairo-1.0-0
+libfuse2 \
+libgstreamer-plugins-base1.0-0 \
+libwebkit2gtk-4.0-37 \
+libcairo2 \
+libgtk2.0-0 \
+libpangoxft-1.0-0 \
+libpangocairo-1.0-0 \
 
 
 
 pip install watchdog
-
-mkdir slicer_data
-mkdir slicer_data/gcodes
-cp slicer/* slicer_data/slicer/
 
 
 SRCDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )"
