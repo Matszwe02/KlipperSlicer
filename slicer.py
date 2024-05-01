@@ -18,6 +18,7 @@ orca_slicer_repo = 'https://github.com/SoftFever/OrcaSlicer/releases/download/v{
 prusa_slicer_repo = 'https://github.com/prusa3d/PrusaSlicer/releases/download/version_2.7.4/PrusaSlicer-2.7.4+linux-armv7l-GTK2-202404050928.AppImage' # TODO: implement versioning
 super_slicer_repo = 'https://github.com/supermerill/SuperSlicer/releases/download/{VERSION}/SuperSlicer-ubuntu_18.04-{VERSION}.AppImage' #TODO: test
 
+print(f'Running as {user}')
 
 token = False
 
@@ -48,6 +49,10 @@ def set_slicer(name: str):
             print('ok')
     
     if not slicer_present:
+        os.system(f"sudo chown {user} ./slicer_data/")
+        os.system(f"sudo chown {user} ./slicer_data/slicer/")
+        os.system(f"sudo chgrp {user} ./slicer_data/")
+        os.system(f"sudo chgrp {user} ./slicer_data/slicer/")
         if name.lower() == 'orcaslicer':
             msg(f'Downloading OrcaSlicer {version} ...')
             os.system(f'wget -P ./slicer_data/slicer/ {orca_slicer_repo.replace("{VERSION}", version)}')
@@ -168,7 +173,7 @@ class FileChangeEvent(LoggingEventHandler):
                 last_file_change = datetime.now().timestamp()
                 
         except Exception as e:
-            msg(str(e.with_traceback()), True)
+            msg(str(e.args), True)
             
         token = False
 
