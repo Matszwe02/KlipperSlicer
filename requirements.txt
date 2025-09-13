@@ -1,1 +1,2 @@
 git+https://github.com/matszwe02/PythonMoonraker
+watchdog
