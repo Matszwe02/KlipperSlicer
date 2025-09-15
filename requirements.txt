@@ -1,2 +1,3 @@
 git+https://github.com/matszwe02/PythonMoonraker
+git+https://github.com/matszwe02/GcodeTools
 watchdog

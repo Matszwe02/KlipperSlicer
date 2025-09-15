@@ -1,30 +1,36 @@
 import os
+import subprocess
 import time
 import shutil
 import configparser
+import json
 from watchdog.observers import Observer
 from watchdog.events import LoggingEventHandler
 from PythonMoonraker.api import MoonrakerAPI
 from PythonMoonraker.websocket import MoonrakerWS
+import GcodeTools
 
 
-moonraker_url = 'localhost'
+moonraker_url = '192.168.0.60'
 
 api = MoonrakerAPI(moonraker_url)
 ws = MoonrakerWS(moonraker_url)
 
 
-
+allowed_extensions = ['stl', '3mf', 'obj', 'step', 'stp', 'amf']
 
 
 class Config:
     def __init__(self):
+        self.slicer_name = None
         self.slicer_executable = None
         self.slicer_args = None
         self.slicer_workdir = None
+        self.system_workdir = None
         self.lookup_paths = None
         self.skip_files = None
         self.auto_update_config = None
+        self.remove_original_files = None
 
     def _read_config(self):
         files = api.server_files_list('config')['result']
@@ -45,12 +51,37 @@ class Config:
             for setting in cfg[section].keys():
                 value = cfg[section][setting]
                 print(f'{setting=}, {value=}, {type(value)=}')
+                if setting == 'name': self.slicer_name = value
                 if setting == 'executable': self.slicer_executable = value
                 if setting == 'args': self.slicer_args = value.split()
                 if setting == 'workdir': self.slicer_workdir = value
+                if setting == 'system_workdir': self.system_workdir = value
                 if setting == 'lookup_paths': self.lookup_paths = value.split()
                 if setting == 'skip_files': self.skip_files = value
                 if setting == 'auto_update_config': self.auto_update_config = bool(value)
+                if setting == 'remove_original_files': self.remove_original_files = bool(value)
+
+        if self.system_workdir is None: self.system_workdir = self.slicer_workdir
+        os.makedirs(self.system_workdir, exist_ok=True)
+
+
+
+def update_config_from_gcode(gcode_str: str):
+    if 'Sliced using KlipperSlicer' in gcode_str[:50]:
+        print('File sliced with KlipperSlicer - skipping')
+        return
+    g = GcodeTools.Gcode(gcode_str=gcode_str)
+    slicer = GcodeTools.Tools.get_slicer_name(g)[0]
+    if slicer.lower() != config.slicer_name:
+        print('Received gcode from different slicer - skipping')
+        return
+    print('updating config file from gcode')
+    files = GcodeTools.Tools.generate_config_files(g)
+    for key in files.keys():
+        with open(os.path.join(config.system_workdir, key), 'w') as f:
+            f.write(files[key])
+    return
+
 
 
 config = Config()
@@ -62,8 +93,12 @@ observers = {}
 
 class FileChangeEvent(LoggingEventHandler):        
     def on_created(self, event):
-        global created_file
-        created_file = event.src_path
+        if event.src_path.endswith('.gcode'):
+            with open(event.src_path, 'r') as f:
+                update_config_from_gcode(f.read())
+        elif event.src_path.split('.')[-1] in allowed_extensions:
+            global created_file
+            created_file = event.src_path
 
 
 event_handler = FileChangeEvent()
@@ -78,13 +113,19 @@ for path in config.lookup_paths:
 
 def handle_message(data: dict):
     if data.get('params', [{}])[0].get('action', '') == 'create_file':
+        print(data)
         item = data['params'][0]['item']
+        if item['root'] == 'gcodes' and item['path'].endswith('.gcode'):
+            gcode_str=api.server_files(item['root'], item['path']).decode()
+            update_config_from_gcode(gcode_str)
+            return
         for path in config.lookup_paths:
             if path.startswith(item['root']): break
         else:
             return
-        global created_file
-        created_file = [item['root'], item['path']]
+        if item['path'].split('.')[-1] in allowed_extensions:
+            global created_file
+            created_file = [item['root'], item['path']]
 
 
 
@@ -92,15 +133,35 @@ def get_file_to_slice():
     global created_file
     if created_file:
         if type(created_file) == str:
-            final_path = os.path.join(config['workdir'], os.path.basename(created_file))
-            shutil.move(created_file, final_path)
+            final_path = os.path.join(config.system_workdir, os.path.basename(created_file))
+            shutil.copy(created_file, final_path)
         else:
-            final_path = os.path.join(config['workdir'], created_file[1])
+            final_path = os.path.join(config.system_workdir, created_file[1])
             with open(final_path, 'wb') as f:
                 f.write(api.server_files(created_file[0], created_file[1]))
         created_file = None
-        return final_path
+        return os.path.basename(final_path)
 
+
+def slice_file(filename: str):
+    cmd = [config.slicer_executable]
+    if config.slicer_name.lower() in ['orcaslicer']:
+        workdir = config.slicer_workdir
+        machine = os.path.join(workdir, "machine.json")
+        process = os.path.join(workdir, "process.json")
+        filament = os.path.join(workdir, "filament.json")
+        cmd.extend(['--load-settings', f'{machine};{process}', '--load-filaments', f'{filament}'])
+        cmd.extend(['--slice', '0', '--allow-newer-file'])
+        cmd.extend(['--outputdir', workdir])
+        cmd.extend(['--datadir', workdir])
+        cmd.extend(['--export-slicedata', workdir])
+        # TODO: support other slicers - port legacy logic
+    cmd.append(os.path.join(workdir, filename))
+    cmd.extend(config.slicer_args)
+    print(f'calling "{cmd}"')
+    subprocess.call(cmd)
+
+# orcaslicer-orcaslicer-1 /opt/orca-slicer/bin/orca-slicer --load-settings "/config/files/machine_orig.json;/config/files/process_orig.json" --load-filaments "/config/files/filament_orig.json" --slice 0 --outputdir /config/files --datadir /config/.config/orca-slicer /config/files/stl.stl --export-slicedata /config/files --debug 5 --allow-newer-file
 
 def main():
     ws.start_websocket_loop(handle_message)
@@ -108,6 +169,16 @@ def main():
         while True:
             filename = get_file_to_slice()
             print(filename)
+            if filename:
+                slice_file(filename)
+                for file in os.listdir(config.system_workdir):
+                    if file.endswith('.gcode'):
+                        print(file)
+                        break
+
+
+
+            time.sleep(10)
     except KeyboardInterrupt:
         ws.stop_websocket_loop()
 
