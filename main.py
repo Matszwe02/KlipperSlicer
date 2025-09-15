@@ -67,7 +67,7 @@ class Config:
 
 
 def update_config_from_gcode(gcode_str: str):
-    if 'Sliced using KlipperSlicer' in gcode_str[:50]:
+    if '; Sliced using KlipperSlicer' in gcode_str[:50]:
         print('File sliced with KlipperSlicer - skipping')
         return
     g = GcodeTools.Gcode(gcode_str=gcode_str)
@@ -161,21 +161,39 @@ def slice_file(filename: str):
     print(f'calling "{cmd}"')
     subprocess.call(cmd)
 
-# orcaslicer-orcaslicer-1 /opt/orca-slicer/bin/orca-slicer --load-settings "/config/files/machine_orig.json;/config/files/process_orig.json" --load-filaments "/config/files/filament_orig.json" --slice 0 --outputdir /config/files --datadir /config/.config/orca-slicer /config/files/stl.stl --export-slicedata /config/files --debug 5 --allow-newer-file
+    print('File sliced successfully!')
+    
+    new_filename = filename.removesuffix(filename.split('.')[-1]) + 'gcode'
+    for file in os.listdir(config.system_workdir):
+        if file.endswith('.gcode'):
+            shutil.move(os.path.join(config.system_workdir, file), os.path.join(config.system_workdir, new_filename))
+    with open(os.path.join(config.system_workdir, new_filename), 'r+') as f:
+        content = f.read()
+        f.seek(0, 0)
+        f.write('; Sliced using KlipperSlicer' + '\n' + content)
+    return new_filename
+
+
+
+def upload_gcode(path: str):
+    filename = os.path.basename(path)
+    with open(path, 'rb') as f:
+        file = f.read()
+    api.server_files_upload(filename, file)
+
+
 
 def main():
     ws.start_websocket_loop(handle_message)
     try:
         while True:
             filename = get_file_to_slice()
-            print(filename)
             if filename:
-                slice_file(filename)
-                for file in os.listdir(config.system_workdir):
-                    if file.endswith('.gcode'):
-                        print(file)
-                        break
-
+                print(filename)
+                gcode_filename = slice_file(filename)
+                upload_gcode(os.path.join(config.system_workdir, gcode_filename))
+                os.remove(os.path.join(config.system_workdir, gcode_filename))
+                os.remove(os.path.join(config.system_workdir, filename))
 
 
             time.sleep(10)
