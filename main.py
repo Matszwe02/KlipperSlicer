@@ -18,6 +18,7 @@ ws = MoonrakerWS(moonraker_url)
 
 
 allowed_extensions = ['stl', '3mf', 'obj', 'step', 'stp', 'amf']
+event_handler = None
 
 
 class Config:
@@ -33,6 +34,7 @@ class Config:
         self.remove_original_files = None
         self.auto_start_print = None
         self.gcode_when_slicing = None
+        self.observers = {}
 
     def _read_config(self):
         files = api.server_files_list('config')['result']
@@ -47,12 +49,9 @@ class Config:
     def load_config(self):
         cfg = configparser.ConfigParser()
         cfg.read_string(self._read_config())
-        print(cfg.sections())
-        print(cfg['slicer'].get('args').split())
         for section in cfg.sections():
             for setting in cfg[section].keys():
                 value = cfg[section][setting].strip()
-                print(f'{setting=}, {value=}, {type(value)=}')
                 if setting == 'name': self.slicer_name = value
                 if setting == 'executable': self.slicer_executable = value
                 if setting == 'args': self.slicer_args = value.split()
@@ -67,6 +66,17 @@ class Config:
 
         if self.system_workdir is None: self.system_workdir = self.slicer_workdir
         os.makedirs(self.system_workdir, exist_ok=True)
+
+        for key in self.observers.keys():
+            self.observers[key].stop()
+        self.observers = {}
+
+        for path in config.lookup_paths:
+            if not path.startswith('/'): continue
+            observer = Observer()
+            observer.schedule(event_handler, path, recursive=True)
+            observer.start()
+            self.observers[path] = observer
 
 
 
@@ -89,13 +99,6 @@ def update_config_from_gcode(gcode_str: str):
 
 
 
-config = Config()
-config.load_config()
-
-created_file = None
-observers = {}
-
-
 class FileChangeEvent(LoggingEventHandler):        
     def on_created(self, event):
         if event.src_path.endswith('.gcode'):
@@ -109,20 +112,13 @@ class FileChangeEvent(LoggingEventHandler):
             created_file = event.src_path
 
 
-event_handler = FileChangeEvent()
-
-for path in config.lookup_paths:
-    if not path.startswith('/'): continue
-    observer = Observer()
-    observer.schedule(event_handler, path, recursive=True)
-    observer.start()
-    observers[path] = observer
-
 
 def handle_message(data: dict):
     if data.get('params', [{}])[0].get('action', '') == 'create_file':
-        print(data)
         item = data['params'][0]['item']
+        if item['root'] == 'config' and item['path'] == 'klipper_slicer.conf':
+            print('Reloading config file')
+            config.load_config()
         if item['root'] == 'gcodes' and item['path'].endswith('.gcode'):
             gcode_str=api.server_files(item['root'], item['path']).decode()
             update_config_from_gcode(gcode_str)
@@ -223,8 +219,19 @@ def main():
 
 
             time.sleep(10)
-    except KeyboardInterrupt:
+    except Exception as e:
         ws.stop_websocket_loop()
+        raise e
+
+
+
+config = Config()
+config.load_config()
+
+created_file = None
+event_handler = FileChangeEvent()
+
+
 
 if __name__ == '__main__':
     main()
