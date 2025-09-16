@@ -11,7 +11,7 @@ from PythonMoonraker.websocket import MoonrakerWS
 import GcodeTools
 
 
-moonraker_url = '192.168.0.60'
+moonraker_url = 'localhost'
 
 api = MoonrakerAPI(moonraker_url)
 ws = MoonrakerWS(moonraker_url)
