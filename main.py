@@ -3,7 +3,7 @@ import subprocess
 import time
 import shutil
 import configparser
-import json
+import re
 from watchdog.observers import Observer
 from watchdog.events import LoggingEventHandler
 from PythonMoonraker.api import MoonrakerAPI
@@ -31,6 +31,8 @@ class Config:
         self.skip_files = None
         self.auto_update_config = None
         self.remove_original_files = None
+        self.auto_start_print = None
+        self.gcode_when_slicing = None
 
     def _read_config(self):
         files = api.server_files_list('config')['result']
@@ -49,7 +51,7 @@ class Config:
         print(cfg['slicer'].get('args').split())
         for section in cfg.sections():
             for setting in cfg[section].keys():
-                value = cfg[section][setting]
+                value = cfg[section][setting].strip()
                 print(f'{setting=}, {value=}, {type(value)=}')
                 if setting == 'name': self.slicer_name = value
                 if setting == 'executable': self.slicer_executable = value
@@ -59,7 +61,9 @@ class Config:
                 if setting == 'lookup_paths': self.lookup_paths = value.split()
                 if setting == 'skip_files': self.skip_files = value
                 if setting == 'auto_update_config': self.auto_update_config = bool(value)
+                if setting == 'auto_start_print': self.auto_start_print = bool(value)
                 if setting == 'remove_original_files': self.remove_original_files = bool(value)
+                if setting == 'gcode_when_slicing': self.gcode_when_slicing = value.splitlines()
 
         if self.system_workdir is None: self.system_workdir = self.slicer_workdir
         os.makedirs(self.system_workdir, exist_ok=True)
@@ -67,6 +71,7 @@ class Config:
 
 
 def update_config_from_gcode(gcode_str: str):
+    if not config.auto_update_config: return
     if '; Sliced using KlipperSlicer' in gcode_str[:50]:
         print('File sliced with KlipperSlicer - skipping')
         return
@@ -97,6 +102,9 @@ class FileChangeEvent(LoggingEventHandler):
             with open(event.src_path, 'r') as f:
                 update_config_from_gcode(f.read())
         elif event.src_path.split('.')[-1] in allowed_extensions:
+            if re.match(config.skip_files, os.path.basename(event.src_path)):
+                print('Skipping excluded file')
+                return
             global created_file
             created_file = event.src_path
 
@@ -124,13 +132,15 @@ def handle_message(data: dict):
         else:
             return
         if item['path'].split('.')[-1] in allowed_extensions:
+            if re.match(config.skip_files, os.path.basename(item['path'])):
+                print('Skipping excluded file')
+                return
             global created_file
             created_file = [item['root'], item['path']]
 
 
 
 def get_file_to_slice():
-    global created_file
     if created_file:
         if type(created_file) == str:
             final_path = os.path.join(config.system_workdir, os.path.basename(created_file))
@@ -139,8 +149,17 @@ def get_file_to_slice():
             final_path = os.path.join(config.system_workdir, created_file[1])
             with open(final_path, 'wb') as f:
                 f.write(api.server_files(created_file[0], created_file[1]))
-        created_file = None
         return os.path.basename(final_path)
+
+
+
+def remove_file():
+    if created_file:
+        if type(created_file) == str:
+            os.remove(created_file)
+        else:
+            api.server_files_delete(created_file[0], created_file[1])
+
 
 
 def slice_file(filename: str):
@@ -184,14 +203,21 @@ def upload_gcode(path: str):
 
 
 def main():
+    global created_file
     ws.start_websocket_loop(handle_message)
     try:
         while True:
             filename = get_file_to_slice()
             if filename:
-                print(filename)
+                if config.gcode_when_slicing:
+                    api.api_printer_command(config.gcode_when_slicing)
                 gcode_filename = slice_file(filename)
                 upload_gcode(os.path.join(config.system_workdir, gcode_filename))
+                if config.auto_start_print:
+                    api.api_printer_command([f'M23 {gcode_filename}', 'M24'])
+                if config.remove_original_files:
+                    remove_file()
+                created_file = None
                 os.remove(os.path.join(config.system_workdir, gcode_filename))
                 os.remove(os.path.join(config.system_workdir, filename))
 
