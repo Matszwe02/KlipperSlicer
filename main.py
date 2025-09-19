@@ -25,7 +25,7 @@ class Config:
     def __init__(self):
         self.slicer_name = None
         self.slicer_executable = None
-        self.slicer_args = None
+        self.slicer_args = []
         self.slicer_workdir = None
         self.system_workdir = None
         self.lookup_paths = None
@@ -33,7 +33,7 @@ class Config:
         self.auto_update_config = None
         self.remove_original_files = None
         self.auto_start_print = None
-        self.gcode_when_slicing = None
+        self.gcode_when_slicing = []
         self.observers = {}
 
     def _read_config(self):
@@ -205,8 +205,8 @@ def main():
         while True:
             filename = get_file_to_slice()
             if filename:
-                if config.gcode_when_slicing:
-                    api.api_printer_command(config.gcode_when_slicing)
+                for cmd in config.gcode_when_slicing:
+                    api.printer_gcode_script(cmd)
                 gcode_filename = slice_file(filename)
                 upload_gcode(os.path.join(config.system_workdir, gcode_filename))
                 if config.auto_start_print:
