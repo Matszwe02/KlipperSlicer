@@ -112,6 +112,8 @@ class FileChangeEvent(LoggingEventHandler):
             created_file = event.src_path
 
 
+event_handler = FileChangeEvent()
+
 
 def handle_message(data: dict):
     if data.get('params', [{}])[0].get('action', '') == 'create_file':
@@ -160,6 +162,7 @@ def remove_file():
 
 def slice_file(filename: str):
     cmd = [config.slicer_executable]
+    cmd.extend(config.slicer_args)
     if config.slicer_name.lower() in ['orcaslicer']:
         workdir = config.slicer_workdir
         machine = os.path.join(workdir, "machine.json")
@@ -172,20 +175,29 @@ def slice_file(filename: str):
         cmd.extend(['--export-slicedata', workdir])
         # TODO: support other slicers - port legacy logic
     cmd.append(os.path.join(workdir, filename))
-    cmd.extend(config.slicer_args)
     print(f'calling "{cmd}"')
     subprocess.call(cmd)
 
     print('File sliced successfully!')
     
     new_filename = filename.removesuffix(filename.split('.')[-1]) + 'gcode'
+    new_path = os.path.join(config.system_workdir, new_filename)
+
     for file in os.listdir(config.system_workdir):
         if file.endswith('.gcode'):
-            shutil.move(os.path.join(config.system_workdir, file), os.path.join(config.system_workdir, new_filename))
-    with open(os.path.join(config.system_workdir, new_filename), 'r+') as f:
-        content = f.read()
-        f.seek(0, 0)
-        f.write('; Sliced using KlipperSlicer' + '\n' + content)
+            shutil.move(os.path.join(config.system_workdir, file), new_path)
+    try:
+        with open(new_path, 'r+') as f:
+            content = f.read()
+            f.seek(0, 0)
+            f.write('; Sliced using KlipperSlicer' + '\n' + content)
+    except PermissionError:
+        os.system(f'sudo chown {os.getenv("USER")} "{new_path}"')
+        with open(new_path, 'r+') as f:
+            content = f.read()
+            f.seek(0, 0)
+            f.write('; Sliced using KlipperSlicer' + '\n' + content)
+
     return new_filename
 
 
@@ -229,9 +241,6 @@ config = Config()
 config.load_config()
 
 created_file = None
-event_handler = FileChangeEvent()
-
-
 
 if __name__ == '__main__':
     main()
