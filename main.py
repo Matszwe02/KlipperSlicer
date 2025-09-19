@@ -222,7 +222,8 @@ def main():
                 gcode_filename = slice_file(filename)
                 upload_gcode(os.path.join(config.system_workdir, gcode_filename))
                 if config.auto_start_print:
-                    api.api_printer_command([f'M23 {gcode_filename}', 'M24'])
+                    api.printer_gcode_script(f'M23 {gcode_filename}')
+                    api.printer_gcode_script('M24')
                 if config.remove_original_files:
                     remove_file()
                 created_file = None
