@@ -122,6 +122,8 @@ class FileChangeEvent(LoggingEventHandler):
                 return
             global created_file
             created_file = event.src_path
+    def on_modified(self, event):
+        self.on_created(event)
 
 
 event_handler = FileChangeEvent()
