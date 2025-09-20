@@ -21,6 +21,14 @@ allowed_extensions = ['stl', '3mf', 'obj', 'step', 'stp', 'amf']
 event_handler = None
 
 
+def resp_msg(msg: str, color='green', resp_type=''):
+    msg = msg.replace('\\', '\\\\').replace('"', '\\"').replace("'", "\\'")
+
+    for line in msg.splitlines():
+        if not line: continue
+        api.printer_gcode_script(f'respond{f" type={resp_type}" if resp_type else ""} msg="<span style=\'color: {color}\'>[KlipperSlicer]</span> {line}"')
+
+
 class Config:
     def __init__(self):
         self.slicer_name = None
@@ -182,7 +190,11 @@ def slice_file(filename: str):
         # TODO: support other slicers - port legacy logic
     cmd.append(os.path.join(workdir, filename))
     print(f'calling "{cmd}"')
-    subprocess.call(cmd)
+    process = subprocess.run(cmd, capture_output=True, text=True)
+
+    if process.returncode > 0:
+        print(f'{process.stdout}\n\n{process.stderr}')
+        raise RuntimeError(f'{process.stdout}\n\n{process.stderr}')
 
     print('File sliced successfully!')
     
@@ -221,26 +233,32 @@ def main():
     ws.start_websocket_loop(handle_message)
     try:
         while True:
-            filename = get_file_to_slice()
-            if filename:
-                for cmd in config.gcode_when_slicing:
-                    api.printer_gcode_script(cmd)
-                gcode_filename = slice_file(filename)
-                upload_gcode(os.path.join(config.system_workdir, gcode_filename))
-                if config.auto_start_print:
-                    api.printer_gcode_script(f'M23 {gcode_filename}')
-                    api.printer_gcode_script('M24')
-                if config.remove_original_files:
-                    remove_file()
+            try:
+                filename = get_file_to_slice()
+                if filename:
+                    resp_msg(f"Preparing to slice {filename}")
+                    for cmd in config.gcode_when_slicing:
+                        api.printer_gcode_script(cmd)
+                    resp_msg("Slicing file...")
+                    gcode_filename = slice_file(filename)
+                    resp_msg("File sliced")
+                    upload_gcode(os.path.join(config.system_workdir, gcode_filename))
+                    if config.auto_start_print:
+                        api.printer_gcode_script(f'M23 {gcode_filename}')
+                        api.printer_gcode_script('M24')
+                    if config.remove_original_files:
+                        remove_file()
+                    created_file = None
+                    os.remove(os.path.join(config.system_workdir, gcode_filename))
+                    os.remove(os.path.join(config.system_workdir, filename))
+
+                time.sleep(1)
+
+            except Exception as e:
+                resp_msg(f'{e}', resp_type='error')
                 created_file = None
-                os.remove(os.path.join(config.system_workdir, gcode_filename))
-                os.remove(os.path.join(config.system_workdir, filename))
-
-
-            time.sleep(10)
-    except Exception as e:
+    except:
         ws.stop_websocket_loop()
-        raise e
 
 
 
