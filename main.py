@@ -60,6 +60,7 @@ class Config:
                 if setting == 'lookup_paths': self.lookup_paths = value.split()
                 if setting == 'skip_files': self.skip_files = value
                 if setting == 'auto_update_config': self.auto_update_config = bool(value)
+                if setting == 'ignore_old_gcodes': self.ignore_old_gcodes = bool(value)
                 if setting == 'auto_start_print': self.auto_start_print = bool(value)
                 if setting == 'remove_original_files': self.remove_original_files = bool(value)
                 if setting == 'gcode_when_slicing': self.gcode_when_slicing = value.splitlines()
@@ -123,6 +124,9 @@ def handle_message(data: dict):
             config.load_config()
         if item['root'] == 'gcodes' and item['path'].endswith('.gcode'):
             gcode_str=api.server_files(item['root'], item['path']).decode()
+            if config.ignore_old_gcodes:
+                mtime = api.server_files_metadata(item['path']).get('result', {}).get('modified', 0)
+                if time.time() - mtime > 120: return
             update_config_from_gcode(gcode_str)
             return
         for path in config.lookup_paths:
