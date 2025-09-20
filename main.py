@@ -28,11 +28,12 @@ class Config:
         self.slicer_args = []
         self.slicer_workdir = None
         self.system_workdir = None
-        self.lookup_paths = None
+        self.lookup_paths = ['config']
         self.skip_files = None
-        self.auto_update_config = None
-        self.remove_original_files = None
-        self.auto_start_print = None
+        self.auto_update_config = True
+        self.ignore_old_gcodes = True
+        self.remove_original_files = True
+        self.auto_start_print = True
         self.gcode_when_slicing = []
         self.observers = {}
 
