@@ -258,6 +258,12 @@ def main():
 
             except Exception as e:
                 resp_msg(f'{e}', resp_type='error')
+                try:
+                    if config.remove_original_files:
+                        remove_file()
+                    os.remove(os.path.join(config.system_workdir, filename))
+                    os.remove(os.path.join(config.system_workdir, gcode_filename))
+                except: pass
                 created_file = None
     except BaseException as e:
         ws.stop_websocket_loop()
