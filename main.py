@@ -113,17 +113,26 @@ def update_config_from_gcode(gcode_str: str):
 
 class FileChangeEvent(LoggingEventHandler):        
     def on_created(self, event):
-        if event.src_path.endswith('.gcode'):
-            with open(event.src_path, 'r') as f:
-                update_config_from_gcode(f.read())
-        elif event.src_path.split('.')[-1] in allowed_extensions:
-            if re.match(config.skip_files, os.path.basename(event.src_path)):
+        if event.is_directory:
+            time.sleep(2)
+            for root, _, files in os.walk(event.src_path):
+                for filename in files:
+                    file_path = os.path.join(root, filename)
+                    print(file_path)
+                    self.handle_file(file_path)
+        else:
+            self.handle_file(event.src_path)
+
+    def on_modified(self, event):
+        self.on_created(event)
+
+    def handle_file(self, file_path):
+        if file_path.split('.')[-1] in allowed_extensions:
+            if re.match(config.skip_files, os.path.basename(file_path)):
                 print('Skipping excluded file')
                 return
             global created_file
-            created_file = event.src_path
-    def on_modified(self, event):
-        self.on_created(event)
+            created_file = file_path
 
 
 event_handler = FileChangeEvent()
