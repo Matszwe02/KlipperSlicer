@@ -6,6 +6,7 @@ import configparser
 import re
 from watchdog.observers import Observer
 from watchdog.events import LoggingEventHandler
+from PythonMoonraker.moonraker import Moonraker
 from PythonMoonraker.api import MoonrakerAPI
 from PythonMoonraker.websocket import MoonrakerWS
 import GcodeTools
@@ -15,6 +16,7 @@ moonraker_url = 'localhost'
 
 api = MoonrakerAPI(moonraker_url)
 ws = MoonrakerWS(moonraker_url)
+mr = Moonraker(moonraker_url, api)
 
 
 allowed_extensions = ['stl', '3mf', 'obj', 'step', 'stp', 'amf']
@@ -26,7 +28,7 @@ def resp_msg(msg: str, color='green', resp_type=''):
 
     for line in msg.splitlines():
         if not line: continue
-        api.printer_gcode_script(f'respond{f" type={resp_type}" if resp_type else ""} msg="<span style=\'color: {color}\'>[KlipperSlicer]</span> {line}"')
+        mr.send_gcode_async(f'respond{f" type={resp_type}" if resp_type else ""} msg="<span style=\'color: {color}\'>[KlipperSlicer]</span> {line}"')
 
 
 class Config:
@@ -238,14 +240,14 @@ def main():
                 if filename:
                     resp_msg(f"Preparing to slice {filename}")
                     for cmd in config.gcode_when_slicing:
-                        api.printer_gcode_script(cmd)
+                        mr.send_gcode_async(cmd)
                     resp_msg("Slicing file...")
                     gcode_filename = slice_file(filename)
                     resp_msg("File sliced")
                     upload_gcode(os.path.join(config.system_workdir, gcode_filename))
                     if config.auto_start_print:
-                        api.printer_gcode_script(f'M23 {gcode_filename}')
-                        api.printer_gcode_script('M24')
+                        mr.send_gcode_async(f'M23 {gcode_filename}')
+                        mr.send_gcode_async('M24')
                     if config.remove_original_files:
                         remove_file()
                     created_file = None
@@ -257,8 +259,9 @@ def main():
             except Exception as e:
                 resp_msg(f'{e}', resp_type='error')
                 created_file = None
-    except:
+    except BaseException as e:
         ws.stop_websocket_loop()
+        raise e
 
 
 
