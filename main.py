@@ -22,6 +22,9 @@ mr = Moonraker(moonraker_url, api)
 allowed_extensions = ['stl', '3mf', 'obj', 'step', 'stp', 'amf']
 event_handler = None
 
+created_file = None
+created_files = []
+
 
 def resp_msg(msg: str, color='green', resp_type=''):
     msg = msg.replace('\\', '\\\\').replace('"', '\\"').replace("'", "\\'")
@@ -118,7 +121,6 @@ class FileChangeEvent(LoggingEventHandler):
             for root, _, files in os.walk(event.src_path):
                 for filename in files:
                     file_path = os.path.join(root, filename)
-                    print(file_path)
                     self.handle_file(file_path)
         else:
             self.handle_file(event.src_path)
@@ -131,8 +133,8 @@ class FileChangeEvent(LoggingEventHandler):
             if re.match(config.skip_files, os.path.basename(file_path)):
                 print('Skipping excluded file')
                 return
-            global created_file
-            created_file = file_path
+            global created_files
+            created_files.append(file_path)
 
 
 event_handler = FileChangeEvent()
@@ -160,8 +162,8 @@ def handle_message(data: dict):
             if re.match(config.skip_files, os.path.basename(item['path'])):
                 print('Skipping excluded file')
                 return
-            global created_file
-            created_file = [item['root'], item['path']]
+            global created_files
+            created_files.append([item['root'], item['path']])
 
 
 
@@ -242,11 +244,14 @@ def upload_gcode(path: str):
 
 
 def main():
-    global created_file
+    global created_file, created_files
     ws.start_websocket_loop(handle_message)
     try:
         while True:
             try:
+                if not created_file and len(created_files) > 0:
+                    created_file = created_files.pop(0)
+                    print(created_file)
                 filename = get_file_to_slice()
                 if filename:
                     resp_msg(f"Preparing to slice {filename}")
@@ -285,7 +290,6 @@ def main():
 config = Config()
 config.load_config()
 
-created_file = None
 
 if __name__ == '__main__':
     main()
