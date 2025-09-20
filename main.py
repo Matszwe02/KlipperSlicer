@@ -117,7 +117,8 @@ event_handler = FileChangeEvent()
 
 
 def handle_message(data: dict):
-    if data.get('params', [{}])[0].get('action', '') == 'create_file':
+    params = data.get("params", [{}])[0]
+    if type(params) == dict and params.get('action', '') == 'create_file':
         item = data['params'][0]['item']
         if item['root'] == 'config' and item['path'] == 'klipper_slicer.conf':
             print('Reloading config file')
