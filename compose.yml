@@ -1,7 +1,7 @@
 services:
     orcaslicer:
         image: matszwe02/orcaslicer-arm:latest
-        name: orcaslicer
+        container_name: orcaslicer
         restart: always
         ports:
             - 3000:3000
