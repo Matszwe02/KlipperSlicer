@@ -66,6 +66,7 @@ class Config:
         for section in cfg.sections():
             for setting in cfg[section].keys():
                 value = cfg[section][setting].strip()
+                print(f'{setting=}, {value=}')
                 if setting == 'name': self.slicer_name = value
                 if setting == 'executable': self.slicer_executable = value
                 if setting == 'args': self.slicer_args = value.split()
@@ -73,14 +74,15 @@ class Config:
                 if setting == 'system_workdir': self.system_workdir = value
                 if setting == 'lookup_paths': self.lookup_paths = value.split()
                 if setting == 'skip_files': self.skip_files = value
-                if setting == 'auto_update_config': self.auto_update_config = bool(value)
-                if setting == 'ignore_old_gcodes': self.ignore_old_gcodes = bool(value)
-                if setting == 'auto_start_print': self.auto_start_print = bool(value)
-                if setting == 'remove_original_files': self.remove_original_files = bool(value)
+                if setting == 'auto_update_config': self.auto_update_config = value.lower() == 'true'
+                if setting == 'ignore_old_gcodes': self.ignore_old_gcodes = value.lower() == 'true'
+                if setting == 'auto_start_print': self.auto_start_print = value.lower() == 'true'
+                if setting == 'remove_original_files': self.remove_original_files = value.lower() == 'true'
                 if setting == 'gcode_when_slicing': self.gcode_when_slicing = value.splitlines()
 
         if self.system_workdir is None: self.system_workdir = self.slicer_workdir
         os.makedirs(self.system_workdir, exist_ok=True)
+        print(f'{self.auto_start_print=}')
 
         for key in self.observers.keys():
             self.observers[key].stop()
@@ -174,8 +176,13 @@ def get_file_to_slice():
             shutil.copy(created_file, final_path)
         else:
             final_path = os.path.join(config.system_workdir, created_file[1])
-            with open(final_path, 'wb') as f:
-                f.write(api.server_files(created_file[0], created_file[1]))
+            try:
+                with open(final_path, 'wb') as f:
+                    f.write(api.server_files(created_file[0], created_file[1]))
+            except PermissionError:
+                os.system(f"sudo chown $USER '{config.system_workdir}'")
+                with open(final_path, 'wb') as f:
+                    f.write(api.server_files(created_file[0], created_file[1]))
         return os.path.basename(final_path)
 
 
@@ -209,7 +216,7 @@ def slice_file(filename: str):
 
     if process.returncode > 0:
         print(f'{process.stdout}\n\n{process.stderr}')
-        raise RuntimeError(f'{process.stdout}\n\n{process.stderr}')
+        raise RuntimeError(f'{" ".join(cmd)} raised error:\n{process.stdout}\n\n{process.stderr}')
 
     print('File sliced successfully!')
     
@@ -271,6 +278,9 @@ def main():
                     os.remove(os.path.join(config.system_workdir, filename))
 
                 time.sleep(1)
+                if not ws.ws:
+                    print('Restarting websocket')
+                    ws.ws_connect()
 
             except Exception as e:
                 resp_msg(f'{e}', resp_type='error')
