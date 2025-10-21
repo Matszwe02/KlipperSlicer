@@ -1,14 +1,32 @@
 # KlipperSlicer
 Slicer integration for klipper
 
+### Access your slicer directly from web UI
+- only mainsail supported for now
+
+### Drag & drop stl/stp/3mf directly into your printer
+
+### Don't worry about different slicer versions on different PCs
+
+### Auto update config whenever you slice from external slicer
+
+![alt text](.github/image.png)
+![alt text](.github/image2.png)
 
 ## Installation
 
 If you want to have a slicer gui available in your mainsail interface, follow also steps marked as **[web]**
 
 - run `install.sh`
-- **[web]** change mainsail to `matszwe02/mainsail`
-  - build it and decompress zip into `~/mainsail`
+- **[web]** change mainsail to my fork:
+  - download and replace repo
+    ```sh
+    rm -rf ~/mainsail
+    mkdir ~/mainsail
+    cd ~/mainsail
+    wget https://github.com/Matszwe02/mainsail/releases/download/v2.14.0/mainsail.zip
+    unzip mainsail.zip
+    ```
 - **[web]** apply changes to:
   - /etc/nginx/conf.d/upstreams.conf
     ```sh
@@ -32,3 +50,4 @@ If you want to have a slicer gui available in your mainsail interface, follow al
     ```
 - edit your config file as per your needs
 - **[web]** ensure you are running your slicer of choose in docker (preferably linuxserver) at port **3000 http**
+- **[web]** reboot to enable new mainsail port forwarding
