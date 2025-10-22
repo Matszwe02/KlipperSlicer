@@ -1,0 +1,17 @@
+services:
+    orcaslicer:
+        image: lsiodev/orcaslicer:version-v2.3.0
+        container_name: orcaslicer
+        restart: always
+        ports:
+            - 3000:3000
+        devices:
+            - /dev/dri:/dev/dri
+        volumes:
+            - ./orca-config:/config/.config/OrcaSlicer
+            - ./orca-config/tmp:/tmp/orcaslicer_model
+            - ./files:/config/files
+        cap_add:
+            - SYS_NICE
+        environment:
+            - SUBFOLDER=/klipper-slicer/
