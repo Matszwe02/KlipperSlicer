@@ -15,8 +15,6 @@ Slicer integration for klipper
 
 ## Installation
 
-If you want to have a slicer gui available in your mainsail interface, follow also steps marked as **[web]**
-
 - run `install.sh`
 - choose your slicer and if you want to have slicer accessible via mainsail
 - edit the newly created config file as per your needs
