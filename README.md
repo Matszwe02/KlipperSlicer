@@ -20,3 +20,4 @@ Slicer integration for klipper
 - edit the newly created config file as per your needs
 - If you want to use your own slicer with web ui, choose an app that runs at port **3000 http**
 - If you want to use your own slicer without web ui, you can download executable and assign it in configuration file
+- set slicer's network printer address to `Moonraker` at `172.17.0.1`
